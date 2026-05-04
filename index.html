@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Revalsys AI | Hybrid RAG</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --chat-bg: #1e293b;
+            --panel-bg: #0f172a;
+            --user-msg: #3b82f6;
+            --ai-msg: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #10b981;
+            --border: #334155;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #app-wrapper {
+            display: flex;
+            width: 100%;
+            max-width: 1000px;
+            height: 90vh;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background-color: var(--chat-bg);
+        }
+
+        /* --- NEW UPLOAD PANEL --- */
+        #upload-panel {
+            width: 250px;
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #upload-panel h3 { margin-top: 0; font-size: 1rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;}
+        
+        .upload-box {
+            border: 2px dashed #475569;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background-color: #1e293b;
+        }
+
+        .upload-box:hover { border-color: var(--user-msg); background-color: #283548; }
+        .upload-box p { margin: 10px 0 0 0; font-size: 0.85rem; color: var(--text-muted); }
+        input[type="file"] { display: none; }
+
+        #upload-status { font-size: 0.8rem; color: var(--accent); display: none; text-align: center; font-weight: bold;}
+        /* ------------------------ */
+
+        #chat-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #header {
+            padding: 20px;
+            background: linear-gradient(90deg, #1e293b, #0f172a);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #header h2 { margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 10px;}
+        .status-dot { width: 10px; height: 10px; background-color: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent);}
+        #session-display { font-size: 0.8rem; color: var(--text-muted); font-family: monospace;}
+
+        #chat-box {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 18px;
+            border-radius: 12px;
+            line-height: 1.5;
+            font-size: 0.95rem;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .user-message { background-color: var(--user-msg); align-self: flex-end; border-bottom-right-radius: 2px; }
+        .ai-message { background-color: var(--ai-msg); align-self: flex-start; border-bottom-left-radius: 2px; position: relative; }
+
+        .meta-badges { display: flex; gap: 8px; margin-top: 10px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; }
+        .badge { padding: 4px 8px; border-radius: 4px; }
+        .badge-doc { background-color: #8b5cf6; color: white; }
+        .badge-web { background-color: #f59e0b; color: white; }
+        .badge-cache { background-color: var(--accent); color: white; }
+
+        #input-area { padding: 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; background-color: #1e293b; }
+        input[type="text"] { flex-grow: 1; padding: 15px; border-radius: 8px; border: 1px solid #475569; background-color: #0f172a; color: white; font-size: 1rem; outline: none; transition: border-color 0.3s; }
+        input[type="text"]:focus { border-color: var(--user-msg); }
+        button { padding: 0 25px; background-color: var(--user-msg); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: background-color 0.3s; }
+        button:hover { background-color: #2563eb; }
+        
+        .loading { color: var(--text-muted); font-style: italic; font-size: 0.9rem; align-self: flex-start; display: none; padding-left: 20px; margin-bottom: 10px;}
+    </style>
+</head>
+<body>
+
+<div id="app-wrapper">
+    <!-- NEW: Document Upload Panel -->
+    <div id="upload-panel">
+        <h3>Knowledge Base</h3>
+        <label class="upload-box" for="file-upload">
+            <div style="font-size: 2rem;">📄</div>
+            <p>Click to upload PDF or DOCX</p>
+        </label>
+        <input type="file" id="file-upload" accept=".pdf,.docx" onchange="uploadDocument()">
+        <div id="upload-status">Processing document...</div>
+    </div>
+
+    <!-- Existing Chat UI -->
+    <div id="chat-container">
+        <div id="header">
+            <h2><div class="status-dot"></div> Revalsys AI</h2>
+            <span id="session-display">Session: </span>
+        </div>
+        
+        <div id="chat-box">
+            <div class="message ai-message">
+                Hello! I am your Hybrid RAG Assistant. Upload a document on the left, or ask me a question to search the web!
+            </div>
+        </div>
+        
+        <div class="loading" id="loading-indicator">Revalsys AI is thinking...</div>
+
+        <div id="input-area">
+            <input type="text" id="user-input" placeholder="Ask a question..." autocomplete="off" onkeypress="handleKeyPress(event)">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. Generate Session ID
+    const sessionId = "session_" + Math.random().toString(36).substring(2, 10);
+    document.getElementById('session-display').innerText += sessionId;
+
+    // --- NEW: Document Upload Logic ---
+    async function uploadDocument() {
+        const fileInput = document.getElementById('file-upload');
+        const statusDiv = document.getElementById('upload-status');
+        const file = fileInput.files[0];
+        
+        if (!file) return;
+
+        statusDiv.style.display = 'block';
+        statusDiv.innerText = 'Processing ' + file.name + '...';
+        statusDiv.style.color = '#94a3b8'; // Grey while loading
+
+        // We use FormData to send files via JavaScript
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('session_id', sessionId); // Attach our invisible ID!
+
+        try {
+            const response = await fetch('http://localhost:8000/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                statusDiv.innerText = `Success! Saved ${data.total_chunks_saved} chunks.`;
+                statusDiv.style.color = '#10b981'; // Green on success
+                
+                // Add a notification to the chat
+                const chatBox = document.getElementById('chat-box');
+                const aiMsgDiv = document.createElement('div');
+                aiMsgDiv.className = 'message ai-message';
+                aiMsgDiv.innerHTML = `I have successfully read **${file.name}**. You can now ask me questions about it!`;
+                chatBox.appendChild(aiMsgDiv);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            } else {
+                statusDiv.innerText = 'Error uploading file.';
+                statusDiv.style.color = '#ef4444'; // Red on error
+            }
+        } catch (error) {
+            statusDiv.innerText = 'Server connection failed.';
+            statusDiv.style.color = '#ef4444';
+            console.error(error);
+        }
+        
+        // Reset file input so you can upload the same file again if needed
+        fileInput.value = '';
+    }
+    // ----------------------------------
+
+    function formatText(text) { return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>'); }
+    function handleKeyPress(event) { if (event.key === "Enter") sendMessage(); }
+
+    async function sendMessage() {
+        const inputField = document.getElementById('user-input');
+        const query = inputField.value.trim();
+        if (!query) return;
+
+        const chatBox = document.getElementById('chat-box');
+        const loading = document.getElementById('loading-indicator');
+
+        const userMsgDiv = document.createElement('div');
+        userMsgDiv.className = 'message user-message';
+        userMsgDiv.innerText = query;
+        chatBox.appendChild(userMsgDiv);
+
+        inputField.value = '';
+        chatBox.scrollTop = chatBox.scrollHeight;
+        loading.style.display = 'block';
+
+        try {
+            const response = await fetch('http://localhost:8000/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sessionId, query: query })
+            });
+
+            const data = await response.json();
+            loading.style.display = 'none';
+
+            const aiMsgDiv = document.createElement('div');
+            aiMsgDiv.className = 'message ai-message';
+            aiMsgDiv.innerHTML = formatText(data.answer);
+
+            let badgesHTML = '<div class="meta-badges">';
+            if (data.source === 'document') { badgesHTML += '<span class="badge badge-doc">📖 Document Authored</span>'; } 
+            else if (data.source === 'web') { badgesHTML += '<span class="badge badge-web">🌐 Live Web Search</span>'; }
+            if (data.cached === true) { badgesHTML += '<span class="badge badge-cache">⚡ 0ms Redis Cache</span>'; }
+            badgesHTML += '</div>';
+
+            aiMsgDiv.innerHTML += badgesHTML;
+            chatBox.appendChild(aiMsgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+        } catch (error) {
+            loading.style.display = 'none';
+            alert("Error connecting to server. Is your FastAPI running?");
+        }
+    }
+</script>
+</body>
+</html>
