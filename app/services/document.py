@@ -1,4 +1,3 @@
-# app/services/document.py
 import io
 from pypdf import PdfReader
 import docx
