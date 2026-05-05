@@ -1,4 +1,3 @@
-# app/services/llm.py
 from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 from app.config import settings
