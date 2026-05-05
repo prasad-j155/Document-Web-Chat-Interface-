@@ -1,4 +1,3 @@
-# app/services/web_search.py
 from ddgs import DDGS
 
 def search_web(query: str, max_results: int = 3) -> str:
