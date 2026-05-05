@@ -1,4 +1,3 @@
-# app/services/retriever.py
 import os
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
