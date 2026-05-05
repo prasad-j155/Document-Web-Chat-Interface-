@@ -1,4 +1,3 @@
-# app/services/memory.py
 import redis
 from app.config import settings
 
